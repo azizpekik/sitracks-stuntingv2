@@ -3,7 +3,9 @@ import os
 from excel_to_json_anak import process_excel_to_json, validate_template_compliance
 
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = 'uploads'
+
+# Configuration for both development and production
+app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 
 # Ensure upload directory exists
@@ -78,6 +80,15 @@ def list_files():
     except Exception as e:
         return jsonify({'error': f'An error occurred: {str(e)}'}), 500
 
+@app.route('/health')
+def health():
+    """Health check endpoint for monitoring"""
+    return jsonify({
+        'status': 'healthy',
+        'service': 'SiTrack Stunting',
+        'version': '1.0.0'
+    })
+
 @app.route('/download-template')
 def download_template():
     """
@@ -96,4 +107,8 @@ def download_template():
         return jsonify({'error': f'Error downloading template: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    port = int(os.environ.get('PORT', 5001))
+    host = os.environ.get('HOST', '0.0.0.0')
+    debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
+
+    app.run(debug=debug_mode, host=host, port=port)
