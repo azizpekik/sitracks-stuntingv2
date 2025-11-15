@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sitrack Stunting</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .upload-section {
+            padding: 40px;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 60px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f8f9ff;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            background: #e8ebff;
+            border-color: #764ba2;
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2em;
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-section {
+            padding: 0 40px 40px;
+            display: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 10px;
+            background: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .result-section {
+            padding: 0 40px 40px;
+            display: none;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .result-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            color: #555;
+            font-size: 1.1em;
+        }
+
+        .children-container {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+        }
+
+        .child-item {
+            padding: 15px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .child-item:hover {
+            background-color: #f8f9ff;
+        }
+
+        .child-item:last-child {
+            border-bottom: none;
+        }
+
+        .child-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .child-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .child-details {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .measurements-count {
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+        }
+
+        .measurements-list {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 0.9em;
+            display: none;
+        }
+
+        .measurements-list.show {
+            display: block;
+        }
+
+        .measurement-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background: white;
+            border-radius: 4px;
+            border-left: 3px solid #667eea;
+        }
+
+        .measurement-date {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .format-indicator {
+            background: #51cf66;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+
+        .warning-message {
+            background: #ffd43b;
+            color: #495057;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border-left: 4px solid #fab005;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+
+        .incomplete-measurement {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 8px;
+            margin-bottom: 5px;
+        }
+
+        .measurement-warning {
+            color: #f59f00;
+            font-weight: bold;
+            font-size: 0.8em;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-right: 5px;
+        }
+
+        .status-normal {
+            background: #51cf66;
+            color: white;
+        }
+
+        .status-kurang {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .status-lebih {
+            background: #ff9f43;
+            color: white;
+        }
+
+        .status-pendek {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .status-tinggi {
+            background: #ff9f43;
+            color: white;
+        }
+
+        .status-out-of-range {
+            background: #868e96;
+            color: white;
+        }
+
+        .status-no-data {
+            background: #a8a8a8;
+            color: white;
+            font-style: italic;
+        }
+
+        .status-tidak-lengkap {
+            background: #a8a8a8;
+            color: white;
+            font-style: italic;
+        }
+
+        .status-danger {
+            background: #ff4757;
+            color: white;
+        }
+
+        .status-no-baseline {
+            background: #74b9ff;
+            color: white;
+        }
+
+        .status-ambiguous {
+            background: #fdcb6e;
+            color: #2d3436;
+        }
+
+        .who-reference {
+            background: #e8f4fd;
+            border: 1px solid #b3d9f2;
+            border-radius: 4px;
+            padding: 5px 8px;
+            margin: 2px 0;
+            font-size: 0.8em;
+            color: #0066cc;
+        }
+
+        .validation-note {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 4px;
+            padding: 5px 8px;
+            margin: 2px 0;
+            font-size: 0.8em;
+            color: #856404;
+        }
+
+        .validation-error {
+            background: #ffe5e5;
+            border: 1px solid #ffb3b3;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .validation-error h3 {
+            color: #d32f2f;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .validation-error-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        .validation-error-list li {
+            background: #fff;
+            border-left: 4px solid #d32f2f;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+        }
+
+        .validation-warning-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        .validation-warning-list li {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            color: #856404;
+        }
+
+        .validation-details {
+            background: #f8f9fa;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+
+        .validation-details h4 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .template-compliance-badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .template-valid {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .template-invalid {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .json-preview {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .error-message {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .success-message {
+            background: #51cf66;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .files-section {
+            padding: 0 40px 40px;
+        }
+
+        .files-list {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .file-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .file-name {
+            font-weight: bold;
+            color: #555;
+        }
+
+        .file-size {
+            color: #888;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>SiTrack Stunting</h1>
+            <p>Cek Validitas Data Anak WHO Based System</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">
+                    Seret dan lepas file Excel di sini atau klik untuk memilih file
+                </div>
+                <button class="btn" onclick="document.getElementById('fileInput').click()">
+                    Pilih File Excel
+                </button>
+                <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
+            </div>
+
+            <div style="text-align: center; margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <p style="margin-bottom: 15px; color: #666;">
+                    <strong>📋 Template Reference:</strong> Gunakan format template "Data Test.xlsx" untuk hasil terbaik
+                </p>
+                <a href="/download-template" class="btn" style="background: linear-gradient(45deg, #4caf50 0%, #8bc34a 100%); margin: 0;">
+                    📥 Download Template Excel
+                </a>
+            </div>
+        </div>
+
+        <div class="progress-section" id="progressSection">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p style="text-align: center; margin-top: 15px; color: #667eea;">
+                <span class="loading"></span> Memproses file...
+            </p>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <div id="messageArea"></div>
+            <div class="result-info" id="resultInfo"></div>
+            <div id="formatIndicator" style="display: none;"></div>
+            <div id="childrenContainer" style="display: none;">
+                <h3 style="margin-bottom: 15px; color: #555;">📋 Data Anak</h3>
+                <div class="children-container" id="childrenList"></div>
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="toggleJsonPreview()" id="toggleJsonBtn" style="display: none;">
+                    📄 Tampilkan/sembunyikan JSON
+                </button>
+            </div>
+            <div class="json-preview" id="jsonPreview" style="display: none;"></div>
+        </div>
+
+        <div class="files-section">
+            <h3 style="margin-bottom: 20px; color: #555;">File yang telah diunggah:</h3>
+            <div class="files-list" id="filesList">
+                <p style="text-align: center; color: #888;">Belum ada file yang diunggah</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const progressSection = document.getElementById('progressSection');
+        const resultSection = document.getElementById('resultSection');
+        const messageArea = document.getElementById('messageArea');
+        const resultInfo = document.getElementById('resultInfo');
+        const jsonPreview = document.getElementById('jsonPreview');
+        const filesList = document.getElementById('filesList');
+
+        // Load existing files on page load
+        window.addEventListener('load', loadFiles);
+
+        // File input change
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            // Validate file type
+            if (!file.name.match(/\.(xlsx|xls)$/)) {
+                showMessage('error', 'Silakan pilih file Excel (.xlsx atau .xls)');
+                return;
+            }
+
+            // Validate file size (max 16MB)
+            if (file.size > 16 * 1024 * 1024) {
+                showMessage('error', 'Ukuran file terlalu besar. Maksimal 16MB');
+                return;
+            }
+
+            uploadFile(file);
+        }
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Show progress
+            progressSection.style.display = 'block';
+            resultSection.style.display = 'none';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                progressSection.style.display = 'none';
+                resultSection.style.display = 'block';
+
+                if (result.success) {
+                    showMessage('success', result.message);
+                    displayResult(result.data);
+                    loadFiles(); // Refresh files list
+                } else {
+                    // Check if this is a validation error
+                    if (result.validation_error) {
+                        displayValidationError(result);
+                    } else {
+                        showMessage('error', result.error || 'Terjadi kesalahan');
+                    }
+                }
+            } catch (error) {
+                progressSection.style.display = 'none';
+                resultSection.style.display = 'block';
+                showMessage('error', 'Koneksi gagal. Silakan coba lagi.');
+                console.error('Error:', error);
+            }
+        }
+
+        function showMessage(type, message) {
+            messageArea.innerHTML = `
+                <div class="${type}-message">
+                    ${message}
+                </div>
+            `;
+        }
+
+        function displayValidationError(result) {
+            // Hide other sections
+            document.getElementById('resultInfo').innerHTML = '';
+            document.getElementById('childrenContainer').style.display = 'none';
+            document.getElementById('formatIndicator').style.display = 'none';
+            document.getElementById('toggleJsonBtn').style.display = 'none';
+            document.getElementById('jsonPreview').style.display = 'none';
+
+            const validation = result.validation;
+
+            let validationHtml = `
+                <div class="validation-error">
+                    <h3>
+                        ❌ Template Validation Failed
+                        <span class="template-compliance-badge template-invalid">
+                            Format: ${validation.format_detected || 'Unknown'}
+                        </span>
+                    </h3>
+                    <p><strong>File Anda tidak sesuai dengan template yang disepakati.</strong></p>
+            `;
+
+            // Display errors
+            if (validation.errors && validation.errors.length > 0) {
+                validationHtml += `
+                    <h4 style="color: #d32f2f; margin: 15px 0 10px 0;">🚨 Error (Harus Diperbaiki):</h4>
+                    <ul class="validation-error-list">
+                `;
+                validation.errors.forEach(error => {
+                    validationHtml += `<li>❌ ${error}</li>`;
+                });
+                validationHtml += '</ul>';
+            }
+
+            // Display warnings
+            if (validation.warnings && validation.warnings.length > 0) {
+                validationHtml += `
+                    <h4 style="color: #ff9800; margin: 15px 0 10px 0;">⚠️ Warning (Disarankan Diperbaiki):</h4>
+                    <ul class="validation-warning-list">
+                `;
+                validation.warnings.forEach(warning => {
+                    validationHtml += `<li>⚠️ ${warning}</li>`;
+                });
+                validationHtml += '</ul>';
+            }
+
+            // Display template details
+            if (validation.template_details && Object.keys(validation.template_details).length > 0) {
+                validationHtml += `
+                    <div class="validation-details">
+                        <h4>📋 Template Analysis:</h4>
+                `;
+                for (const [key, value] of Object.entries(validation.template_details)) {
+                    const formattedKey = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                    validationHtml += `<div><strong>${formattedKey}:</strong> ${value}</div>`;
+                }
+                validationHtml += '</div>';
+            }
+
+            // Add download template section if needed
+          if (validation.needs_template_download) {
+              validationHtml += `
+                <div style="margin-top: 20px; padding: 15px; background: #e8f5e8; border-radius: 8px; text-align: center;">
+                    <h4 style="color: #2e7d32; margin-bottom: 15px;">📥 Download Template Reference</h4>
+                    <p style="margin-bottom: 15px; color: #424242;">
+                        Gunakan file "Data Test.xlsx" sebagai template reference untuk format yang benar.
+                    </p>
+                    <a href="/download-template" class="btn" style="background: linear-gradient(45deg, #4caf50 0%, #8bc34a 100%);">
+                        📥 Download Template Excel
+                    </a>
+                </div>
+            `;
+          }
+
+          validationHtml += `
+                <div style="margin-top: 20px; padding: 15px; background: #e3f2fd; border-radius: 8px;">
+                    <h4 style="color: #1976d2; margin-bottom: 10px;">📖 Cara Memperbaiki:</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: #424242;">
+                        <li>Download template reference "Data Test.xlsx" di atas</li>
+                        <li>Pastikan kolom identitas lengkap: NO, NIK, NAMA ANAK, TANGGAL LAHIR, JENIS KELAMIN</li>
+                        <li>Tambahkan kolom periode pengukuran (misal: JANUARI 2024, FEBRUARI 2024)</li>
+                        <li>Untuk setiap periode, pastikan ada 5 sub-kolom: TGL UKUR, UMUR, BERAT, TINGGI, CARA UKUR</li>
+                        <li>Data anak dimulai dari baris ke-3 (setelah header dan sub-header)</li>
+                        <li>Format tanggal menggunakan YYYY-MM-DD atau format yang konsisten</li>
+                        <li>Jenis kelamin menggunakan "L" atau "P"</li>
+                    </ul>
+                </div>
+            </div>
+            `;
+
+            messageArea.innerHTML = validationHtml;
+        }
+
+        function displayResult(data) {
+            // Check if this is balita growth data
+            const isBalitaGrowth = data.children && Array.isArray(data.children);
+
+            if (isBalitaGrowth) {
+                displayBalitaGrowthResult(data);
+            } else {
+                displayLegacyResult(data);
+            }
+        }
+
+        function displayBalitaGrowthResult(data) {
+            let resultHtml = '';
+
+            // Display validation warnings if any
+            if (data.validation && data.validation.warnings && data.validation.warnings.length > 0) {
+                resultHtml += `
+                    <div class="validation-warning" style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                        <h4 style="color: #856404; margin-bottom: 10px;">⚠️ Template Validation Warnings:</h4>
+                        <ul class="validation-warning-list" style="margin-bottom: 0;">
+                `;
+                data.validation.warnings.forEach(warning => {
+                    resultHtml += `<li>⚠️ ${warning}</li>`;
+                });
+                resultHtml += `
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // Display file info
+            resultHtml += `
+                <div class="info-item">
+                    <div class="info-label">📁 Nama File</div>
+                    <div class="info-value">${data.file_name}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📊 Format Terdeteksi</div>
+                    <div class="info-value">${data.format_type}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">👶 Jumlah Anak</div>
+                    <div class="info-value">${data.total_children}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">📅 Jumlah Periode</div>
+                    <div class="info-value">${data.total_periods}</div>
+                </div>
+            `;
+
+            // Add template compliance badge
+            if (data.validation && data.validation.valid !== undefined) {
+                const complianceClass = data.validation.valid ? 'template-valid' : 'template-invalid';
+                const complianceText = data.validation.valid ? '✅ Template Sesuai' : '❌ Template Tidak Sesuai';
+                resultHtml = `
+                    <div class="template-compliance-badge ${complianceClass}" style="display: block; text-align: center; margin-bottom: 15px;">
+                        ${complianceText}
+                    </div>
+                ` + resultHtml;
+            }
+
+            resultInfo.innerHTML = resultHtml;
+
+            // Show format indicator
+            const formatIndicator = document.getElementById('formatIndicator');
+            formatIndicator.innerHTML = `<div class="format-indicator">✅ Format ${data.format_type} berhasil diproses</div>`;
+            formatIndicator.style.display = 'block';
+
+            // Display children data
+            displayChildrenList(data.children);
+
+            // Show toggle JSON button
+            document.getElementById('toggleJsonBtn').style.display = 'inline-block';
+
+            // Display JSON preview (hidden by default)
+            jsonPreview.textContent = JSON.stringify(data, null, 2);
+        }
+
+        function displayLegacyResult(data) {
+            // Display file info for legacy format
+            resultInfo.innerHTML = `
+                <div class="info-item">
+                    <div class="info-label">Nama File</div>
+                    <div class="info-value">${data.file_name}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Jumlah Sheet</div>
+                    <div class="info-value">${data.total_sheets || 'N/A'}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">Total Baris</div>
+                    <div class="info-value">${data.total_rows || 'N/A'}</div>
+                </div>
+            `;
+
+            // Display JSON preview
+            jsonPreview.textContent = JSON.stringify(data, null, 2);
+            jsonPreview.style.display = 'block';
+            document.getElementById('toggleJsonBtn').style.display = 'none';
+        }
+
+        function displayChildrenList(children) {
+            const childrenContainer = document.getElementById('childrenContainer');
+            const childrenList = document.getElementById('childrenList');
+
+            childrenList.innerHTML = '';
+
+            children.forEach((child, index) => {
+                // Count complete and incomplete measurements
+                const completeMeasurements = child.measurements ? child.measurements.filter(m => m.has_complete_data).length : 0;
+                const incompleteMeasurements = child.measurements ? child.measurements.filter(m => m.is_incomplete).length : 0;
+                const totalMeasurements = child.measurements ? child.measurements.length : 0;
+
+                const childItem = document.createElement('div');
+                childItem.className = 'child-item';
+                childItem.onclick = () => toggleMeasurements(index);
+
+                const childHeader = document.createElement('div');
+                childHeader.className = 'child-header';
+                childHeader.innerHTML = `
+                    <div class="child-name">${child.nama_anak || 'Tanpa Nama'}</div>
+                    <div class="measurements-count">${completeMeasurements} pengukuran lengkap</div>
+                `;
+
+                // Add warning for incomplete measurements
+                let warningHtml = '';
+                if (incompleteMeasurements > 0) {
+                    warningHtml = `
+                        <div class="measurement-warning">
+                            ⚠️ ${incompleteMeasurements} pengukuran tidak lengkap (tanpa berat/tinggi)
+                        </div>
+                    `;
+                }
+
+                const childDetails = document.createElement('div');
+                childDetails.className = 'child-details';
+                childDetails.innerHTML = `
+                    <div>NIK: ${child.nik || '-'}</div>
+                    <div>Tanggal Lahir: ${child.tanggal_lahir || '-'}</div>
+                    <div>Jenis Kelamin: ${child.jenis_kelamin || '-'}</div>
+                    <div>No: ${child.no || '-'}</div>
+                    ${warningHtml}
+                `;
+
+                const measurementsList = document.createElement('div');
+                measurementsList.className = 'measurements-list';
+                measurementsList.id = `measurements-${index}`;
+
+                if (child.measurements && child.measurements.length > 0) {
+                    let measurementsHtml = '<h4 style="margin-bottom: 10px;">📏 Data Pengukuran:</h4>';
+
+                    child.measurements.forEach(measurement => {
+                        const isIncomplete = measurement.is_incomplete;
+                        const measurementClass = isIncomplete ? 'incomplete-measurement' : 'measurement-item';
+
+                        // Get status classes for badges
+                        function getStatusClass(status) {
+                            const statusMap = {
+                                'NORMAL': 'status-normal',
+                                'KURANG': 'status-kurang',
+                                'LEBIH': 'status-lebih',
+                                'PENDEK': 'status-pendek',
+                                'TINGGI': 'status-tinggi',
+                                'OUT_OF_RANGE': 'status-out-of-range',
+                                'NO_DATA': 'status-no-data',
+                                'TIDAK LENGKAP': 'status-tidak-lengkap',
+                                'DANGER': 'status-danger',
+                                'NO_BASELINE': 'status-no-baseline',
+                                'AMBIGU_METHODOLOGY': 'status-ambiguous'
+                            };
+                            return statusMap[status] || 'status-out-of-range';
+                        }
+
+                        // Generate status badges
+                        const bbBadge = measurement.status_bb ?
+                            `<span class="status-badge ${getStatusClass(measurement.status_bb)}">${measurement.status_bb}</span>` : '';
+
+                        const tbBadge = measurement.status_tb ?
+                            `<span class="status-badge ${getStatusClass(measurement.status_tb)}">${measurement.status_tb}</span>` : '';
+
+                        const tbRasionalBadge = measurement.status_tb_rasional ?
+                            `<span class="status-badge ${getStatusClass(measurement.status_tb_rasional)}">${measurement.status_tb_rasional}</span>` : '';
+
+                        measurementsHtml += `
+                            <div class="${measurementClass}">
+                                <div class="measurement-date">${measurement.periode}</div>
+                                <div style="font-size: 0.9em; color: #666;">
+                                    📅 ${measurement.tgl_ukur || '-'} |
+                                    📏 Umur: ${measurement.umur_bulan || '-'} bulan |
+                                    ⚖️ Berat: ${measurement.berat_kg || '-'} kg |
+                                    📐 Tinggi: ${measurement.tinggi_cm || '-'} cm |
+                                    🎯 Cara: ${measurement.cara_ukur || '-'}
+                                    ${isIncomplete ? '<span class="measurement-warning"> ⚠️ Data tidak lengkap</span>' : ''}
+                                </div>
+                                <div style="margin-top: 5px;">
+                                    ${bbBadge} ${tbBadge}
+                                </div>
+                                <div style="margin-top: 5px;">
+                                    ${tbRasionalBadge}
+                                </div>
+                                ${measurement.rentang_bb_ideal ? `<div class="who-reference">🏥 WHO BB Ideal: ${measurement.rentang_bb_ideal} kg</div>` : ''}
+                                ${measurement.rentang_tb_ideal ? `<div class="who-reference">🏥 WHO TB Ideal: ${measurement.rentang_tb_ideal} cm</div>` : ''}
+                                ${measurement.catatan_tb_rasional ? `<div class="validation-note">📝 ${measurement.catatan_tb_rasional}</div>` : ''}
+                            </div>
+                        `;
+                    });
+
+                    // Add summary warning if there are incomplete measurements
+                    if (incompleteMeasurements > 0) {
+                        measurementsHtml = `
+                            <div class="warning-message">
+                                ⚠️ <strong>Perhatian:</strong> Terdapat ${incompleteMeasurements} pengukuran dengan data tidak lengkap (hanya tanggal/umur tanpa berat atau tinggi).
+                                Data ini tetap ditampilkan untuk transparansi, tetapi tidak dihitung dalam statistik pengukuran lengkap.
+                            </div>
+                        ` + measurementsHtml;
+                    }
+
+                    measurementsList.innerHTML = measurementsHtml;
+                }
+
+                childItem.appendChild(childHeader);
+                childItem.appendChild(childDetails);
+                childItem.appendChild(measurementsList);
+                childrenList.appendChild(childItem);
+            });
+
+            childrenContainer.style.display = 'block';
+        }
+
+        function toggleMeasurements(index) {
+            const measurementsList = document.getElementById(`measurements-${index}`);
+            if (measurementsList) {
+                measurementsList.classList.toggle('show');
+            }
+        }
+
+        function toggleJsonPreview() {
+            const jsonPreview = document.getElementById('jsonPreview');
+            const toggleBtn = document.getElementById('toggleJsonBtn');
+
+            if (jsonPreview.style.display === 'none' || jsonPreview.style.display === '') {
+                jsonPreview.style.display = 'block';
+                toggleBtn.textContent = '📄 Sembunyikan JSON';
+            } else {
+                jsonPreview.style.display = 'none';
+                toggleBtn.textContent = '📄 Tampilkan JSON';
+            }
+        }
+
+        async function loadFiles() {
+            try {
+                const response = await fetch('/files');
+                const result = await response.json();
+
+                if (result.files && result.files.length > 0) {
+                    filesList.innerHTML = result.files.map(file => `
+                        <div class="file-item">
+                            <div class="file-name">📊 ${file.name}</div>
+                            <div class="file-size">${formatFileSize(file.size)}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    filesList.innerHTML = '<p style="text-align: center; color: #888;">Belum ada file yang diunggah</p>';
+                }
+            } catch (error) {
+                console.error('Error loading files:', error);
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>
