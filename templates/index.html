@@ -342,6 +342,89 @@
             color: #2d3436;
         }
 
+        .export-section {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+
+        .export-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .export-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .export-btn {
+            background: linear-gradient(45deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(40, 167, 69, 0.3);
+        }
+
+        .export-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            background: #6c757d;
+        }
+
+        .export-loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        .export-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .export-stat {
+            background: white;
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #28a745;
+        }
+
+        .export-stat-label {
+            font-size: 0.8em;
+            color: #6c757d;
+            margin-bottom: 3px;
+        }
+
+        .export-stat-value {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #495057;
+        }
+
         .who-reference {
             background: #e8f4fd;
             border: 1px solid #b3d9f2;
@@ -559,6 +642,17 @@
                 <h3 style="margin-bottom: 15px; color: #555;">📋 Data Anak</h3>
                 <div class="children-container" id="childrenList"></div>
             </div>
+            <div class="export-section" id="exportSection" style="display: none;">
+                <div class="export-header">
+                    <div class="export-title">📊 Export Data Analisis</div>
+                    <button class="export-btn" id="exportBtn" onclick="exportAnalisis()">
+                        <span id="exportBtnIcon">📥</span>
+                        <span id="exportBtnText">Export ke Excel</span>
+                    </button>
+                </div>
+                <div class="export-stats" id="exportStats"></div>
+            </div>
+
             <div style="margin-top: 20px;">
                 <button class="btn" onclick="toggleJsonPreview()" id="toggleJsonBtn" style="display: none;">
                     📄 Tampilkan/sembunyikan JSON
@@ -585,8 +679,11 @@
         const jsonPreview = document.getElementById('jsonPreview');
         const filesList = document.getElementById('filesList');
 
-        // Load existing files on page load
-        window.addEventListener('load', loadFiles);
+        // Load existing files and check export data on page load
+        window.addEventListener('load', () => {
+            loadFiles();
+            checkExportData();
+        });
 
         // File input change
         fileInput.addEventListener('change', handleFileSelect);
@@ -847,6 +944,11 @@
             // Show toggle JSON button
             document.getElementById('toggleJsonBtn').style.display = 'inline-block';
 
+            // Show export section if data is available for export
+            if (data.has_export_data) {
+                showExportSection(data);
+            }
+
             // Display JSON preview (hidden by default)
             jsonPreview.textContent = JSON.stringify(data, null, 2);
         }
@@ -910,10 +1012,12 @@
                 const childDetails = document.createElement('div');
                 childDetails.className = 'child-details';
                 childDetails.innerHTML = `
-                    <div>NIK: ${child.nik || '-'}</div>
-                    <div>Tanggal Lahir: ${child.tanggal_lahir || '-'}</div>
-                    <div>Jenis Kelamin: ${child.jenis_kelamin || '-'}</div>
-                    <div>No: ${child.no || '-'}</div>
+                    <div>🏛️ Tempat: ${child.tempat || '-'}</div>
+                    <div>🆔 NIK: ${child.nik || '-'}</div>
+                    <div>👶 Nama: ${child.nama_anak || '-'}</div>
+                    <div>📅 Tanggal Lahir: ${child.tanggal_lahir || '-'}</div>
+                    <div>⚧️ Jenis Kelamin: ${child.jenis_kelamin || '-'}</div>
+                    <div>🔢 No: ${child.no || '-'}</div>
                     ${warningHtml}
                 `;
 
@@ -924,7 +1028,10 @@
                 if (child.measurements && child.measurements.length > 0) {
                     let measurementsHtml = '<h4 style="margin-bottom: 10px;">📏 Data Pengukuran:</h4>';
 
-                    child.measurements.forEach(measurement => {
+                    // Reverse measurements order to show latest first
+                    const reversedMeasurements = [...child.measurements].reverse();
+
+                    reversedMeasurements.forEach(measurement => {
                         const isIncomplete = measurement.is_incomplete;
                         const measurementClass = isIncomplete ? 'incomplete-measurement' : 'measurement-item';
 
@@ -946,15 +1053,15 @@
                             return statusMap[status] || 'status-out-of-range';
                         }
 
-                        // Generate status badges
+                        // Generate status badges with prefixes
                         const bbBadge = measurement.status_bb ?
-                            `<span class="status-badge ${getStatusClass(measurement.status_bb)}">${measurement.status_bb}</span>` : '';
+                            `<span class="status-badge ${getStatusClass(measurement.status_bb)}">BB: ${measurement.status_bb}</span>` : '';
 
                         const tbBadge = measurement.status_tb ?
-                            `<span class="status-badge ${getStatusClass(measurement.status_tb)}">${measurement.status_tb}</span>` : '';
+                            `<span class="status-badge ${getStatusClass(measurement.status_tb)}">TB: ${measurement.status_tb}</span>` : '';
 
                         const tbRasionalBadge = measurement.status_tb_rasional ?
-                            `<span class="status-badge ${getStatusClass(measurement.status_tb_rasional)}">${measurement.status_tb_rasional}</span>` : '';
+                            `<span class="status-badge ${getStatusClass(measurement.status_tb_rasional)}">RASIONAL TB: ${measurement.status_tb_rasional}</span>` : '';
 
                         measurementsHtml += `
                             <div class="${measurementClass}">
@@ -1048,6 +1155,127 @@
             const sizes = ['Bytes', 'KB', 'MB', 'GB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Export functionality
+        async function checkExportData() {
+            try {
+                const response = await fetch('/check-export-data');
+                const result = await response.json();
+
+                if (result.has_export_data) {
+                    showExportSectionFromStats(result.stats);
+                }
+            } catch (error) {
+                console.error('Error checking export data:', error);
+            }
+        }
+
+        function showExportSection(data) {
+            const exportSection = document.getElementById('exportSection');
+            const exportStats = document.getElementById('exportStats');
+
+            const statsHtml = `
+                <div class="export-stat">
+                    <div class="export-stat-label">Total Anak</div>
+                    <div class="export-stat-value">${data.total_children || 0}</div>
+                </div>
+                <div class="export-stat">
+                    <div class="export-stat-label">Total Periode</div>
+                    <div class="export-stat-value">${data.total_periods || 0}</div>
+                </div>
+                <div class="export-stat">
+                    <div class="export-stat-label">Format</div>
+                    <div class="export-stat-value">${data.format_type || 'Unknown'}</div>
+                </div>
+                <div class="export-stat">
+                    <div class="export-stat-label">File Asli</div>
+                    <div class="export-stat-value" style="font-size: 0.9em;">${data.file_name || 'Unknown'}</div>
+                </div>
+            `;
+
+            exportStats.innerHTML = statsHtml;
+            exportSection.style.display = 'block';
+        }
+
+        function showExportSectionFromStats(stats) {
+            const exportSection = document.getElementById('exportSection');
+            const exportStats = document.getElementById('exportStats');
+
+            const statsHtml = `
+                <div class="export-stat">
+                    <div class="export-stat-label">Total Anak</div>
+                    <div class="export-stat-value">${stats.total_children || 0}</div>
+                </div>
+                <div class="export-stat">
+                    <div class="export-stat-label">Total Periode</div>
+                    <div class="export-stat-value">${stats.total_periods || 0}</div>
+                </div>
+                <div class="export-stat">
+                    <div class="export-stat-label">Format</div>
+                    <div class="export-stat-value">${stats.format_type || 'Unknown'}</div>
+                </div>
+                <div class="export-stat">
+                    <div class="export-stat-label">File Asli</div>
+                    <div class="export-stat-value" style="font-size: 0.9em;">${stats.file_name || 'Unknown'}</div>
+                </div>
+            `;
+
+            exportStats.innerHTML = statsHtml;
+            exportSection.style.display = 'block';
+        }
+
+        async function exportAnalisis() {
+            const exportBtn = document.getElementById('exportBtn');
+            const exportBtnIcon = document.getElementById('exportBtnIcon');
+            const exportBtnText = document.getElementById('exportBtnText');
+
+            // Disable button and show loading state
+            exportBtn.disabled = true;
+            exportBtnIcon.innerHTML = '<span class="export-loading"></span>';
+            exportBtnText.textContent = 'Membuat Export...';
+
+            try {
+                const response = await fetch('/export-analisis');
+
+                if (response.ok) {
+                    // Get filename from response headers or use default
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'Analisis_Pertumbuhan_Anak.xlsx';
+
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                        if (filenameMatch && filenameMatch[1]) {
+                            filename = filenameMatch[1].replace(/['"]/g, '');
+                        }
+                    }
+
+                    // Convert response to blob and download
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    // Show success message
+                    showMessage('success', `✅ Export berhasil! File "${filename}" telah diunduh.`);
+                } else {
+                    const errorData = await response.json();
+                    showMessage('error', errorData.error || '❌ Gagal membuat file export. Silakan coba lagi.');
+                }
+            } catch (error) {
+                console.error('Export error:', error);
+                showMessage('error', '❌ Terjadi kesalahan saat export. Silakan coba lagi.');
+            } finally {
+                // Reset button state
+                exportBtn.disabled = false;
+                exportBtnIcon.innerHTML = '📥';
+                exportBtnText.textContent = 'Export ke Excel';
+            }
         }
     </script>
 </body>
