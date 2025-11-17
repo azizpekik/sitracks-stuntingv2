@@ -1,9 +1,10 @@
-from flask import Flask, request, render_template, jsonify, send_file, session
+from flask import Flask, request, render_template, jsonify, send_file
 from flask_session import Session
 import os
 from datetime import datetime
 from excel_to_json_anak import process_excel_to_json, validate_template_compliance
 from export_analisis import export_analisis_from_json
+import uuid
 
 app = Flask(__name__)
 
@@ -30,6 +31,9 @@ os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
 
 # Initialize session
 sess = Session(app)
+
+# Server-side storage for export data (Railway session fix)
+export_data_store = {}
 
 @app.route('/')
 def index():
@@ -69,9 +73,21 @@ def upload_file():
             # Add validation information to the result
             result['validation'] = validation_result
 
-            # Store processed data in session for export functionality
+            # Store processed data in session and server storage for export functionality
             session['processed_data'] = result
             session['upload_timestamp'] = datetime.now().isoformat()
+
+            # Also store in server-side storage for Railway compatibility
+            export_id = str(uuid.uuid4())
+            export_data_store[export_id] = {
+                'data': result,
+                'upload_timestamp': datetime.now().isoformat(),
+                'created_at': datetime.now().isoformat()
+            }
+            session['export_id'] = export_id
+
+            # Add export_id to result for frontend
+            result['export_id'] = export_id
 
             # Build appropriate message based on validation results
             message = 'File uploaded and processed successfully'
@@ -82,7 +98,8 @@ def upload_file():
                 'success': True,
                 'message': message,
                 'data': result,
-                'has_export_data': True  # Always allow export after successful upload
+                'has_export_data': True,
+                'export_id': export_id  # Send export_id to frontend
             })
         else:
             return jsonify({'error': 'Please upload an Excel file (.xlsx or .xls)'}), 400
@@ -137,11 +154,26 @@ def export_analisis():
     Export analisis data pertumbuhan anak ke Excel dengan format analisis
     """
     try:
-        # Check if we have processed data in session
-        if 'processed_data' not in session:
-            return jsonify({'error': 'Tidak ada data untuk di-export. Silakan upload file terlebih dahulu.'}), 400
+        # Try to get export_id from session first
+        export_id = session.get('export_id')
 
-        processed_data = session['processed_data']
+        # If no export_id in session, check server-side storage
+        if not export_id:
+            # Find the most recent export data
+            if export_data_store:
+                export_id = max(export_data_store.keys(),
+                           key=lambda k: export_data_store[k].get('created_at', ''))
+            else:
+                return jsonify({'error': 'Tidak ada data untuk di-export. Silakan upload file terlebih dahulu.'}), 400
+
+        # Get processed data from server storage
+        if export_id and export_id in export_data_store:
+            processed_data = export_data_store[export_id]['data']
+        else:
+            # Fallback to session (for compatibility)
+            if 'processed_data' not in session:
+                return jsonify({'error': 'Tidak ada data untuk di-export. Silakan upload file terlebih dahulu.'}), 400
+            processed_data = session['processed_data']
 
         # Double-check that we have valid data structure
         if not processed_data or not isinstance(processed_data, dict):
@@ -176,15 +208,35 @@ def check_export_data():
     Check if there's data available for export
     """
     try:
-        has_data = 'processed_data' in session
-        upload_time = session.get('upload_timestamp', None)
+        # Check server-side storage first
+        has_server_data = len(export_data_store) > 0
+        has_session_data = 'processed_data' in session
+        export_id = session.get('export_id')
 
-        # Get some statistics about the data if available
         stats = {}
-        if has_data:
-            data = session.get('processed_data', {})
+        upload_time = None
 
-            # Validate that the data structure is valid
+        # Prioritize server-side storage
+        if has_server_data:
+            # Get the most recent data
+            latest_export_id = max(export_data_store.keys(),
+                                 key=lambda k: export_data_store[k].get('created_at', ''))
+            if latest_export_id in export_data_store:
+                data = export_data_store[latest_export_id]['data']
+                upload_time = export_data_store[latest_export_id]['upload_timestamp']
+
+                if isinstance(data, dict) and 'children' in data and data['children']:
+                    stats = {
+                        'total_children': data.get('total_children', len(data['children'])),
+                        'total_periods': data.get('total_periods', 0),
+                        'file_name': data.get('file_name', 'Unknown'),
+                        'format_type': data.get('format_type', 'Unknown')
+                    }
+        elif has_session_data and export_id and export_id in export_data_store:
+            # Fallback to session data
+            data = export_data_store[export_id]['data']
+            upload_time = export_data_store[export_id]['upload_timestamp']
+
             if isinstance(data, dict) and 'children' in data and data['children']:
                 stats = {
                     'total_children': data.get('total_children', len(data['children'])),
@@ -192,14 +244,13 @@ def check_export_data():
                     'file_name': data.get('file_name', 'Unknown'),
                     'format_type': data.get('format_type', 'Unknown')
                 }
-            else:
-                # Data structure is invalid, reset has_data
-                has_data = False
 
         return jsonify({
-            'has_export_data': has_data,
+            'has_export_data': has_server_data or has_session_data,
             'upload_timestamp': upload_time,
-            'stats': stats
+            'stats': stats,
+            'server_storage_count': len(export_data_store),
+            'session_export_id': export_id
         })
 
     except Exception as e:
@@ -208,20 +259,22 @@ def check_export_data():
 @app.route('/debug-session')
 def debug_session():
     """
-    Debug endpoint to check session data
+    Debug endpoint to check session and server storage data
     """
     try:
         session_info = {
             'session_keys': list(session.keys()),
             'has_processed_data': 'processed_data' in session,
+            'has_export_id': 'export_id' in session,
             'session_id': getattr(session, '_sid', 'unknown'),
             'session_type': str(type(session)),
             'debug_info': {}
         }
 
+        # Check session data
         if 'processed_data' in session:
             data = session['processed_data']
-            session_info['debug_info'] = {
+            session_info['debug_info']['session_data'] = {
                 'data_type': str(type(data)),
                 'is_dict': isinstance(data, dict),
                 'data_keys': list(data.keys()) if isinstance(data, dict) else 'not_dict',
@@ -229,6 +282,22 @@ def debug_session():
                 'children_count': len(data.get('children', [])) if isinstance(data, dict) and 'children' in data else 0,
                 'total_children_field': data.get('total_children', 'missing') if isinstance(data, dict) else 'missing'
             }
+
+        # Check server storage
+        session_info['debug_info']['server_storage'] = {
+            'total_stored_exports': len(export_data_store),
+            'storage_keys': list(export_data_store.keys()),
+            'storage_details': {}
+        }
+
+        if export_data_store:
+            for export_id, storage_data in export_data_store.items():
+                session_info['debug_info']['storage_details'][export_id] = {
+                    'created_at': storage_data.get('created_at'),
+                    'has_children': isinstance(storage_data.get('data', {}), dict) and 'children' in storage_data.get('data', {}),
+                    'children_count': len(storage_data.get('data', {}).get('children', [])),
+                    'upload_timestamp': storage_data.get('upload_timestamp')
+                }
 
         return jsonify(session_info)
     except Exception as e:
