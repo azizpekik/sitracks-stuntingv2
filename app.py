@@ -207,7 +207,7 @@ if __name__ == '__main__':
     if os.path.exists('data_template'):
         print(f"Data template contents: {os.listdir('data_template')}")
 
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 8080))  # Updated for Railway
     host = os.environ.get('HOST', '0.0.0.0')
     debug_mode = os.environ.get('FLASK_ENV', 'production') == 'development'
 
