@@ -120,7 +120,7 @@ def download_template():
     Download template reference file
     """
     try:
-        template_path = os.path.join('data test', 'Data Test.xlsx')
+        template_path = os.path.join('data_template', 'Data Test.xlsx')
         if os.path.exists(template_path):
             return send_file(template_path,
                            as_attachment=True,

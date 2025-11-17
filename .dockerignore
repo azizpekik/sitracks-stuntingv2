@@ -50,7 +50,7 @@ uploads/*
 exports/*
 flask_sessions/*
 output_*.json
-*.xlsx
+output_*.xlsx
 
 # Claude
 .claude

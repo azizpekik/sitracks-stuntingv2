@@ -2,9 +2,51 @@ import pandas as pd
 import json
 import os
 from datetime import datetime
+import openpyxl
 
 # Global variable to store WHO data
 who_table = None
+
+def extract_period_names_from_merged_cells(file_path):
+    """
+    Extract period names from merged cells in Excel file
+    Returns list of period names in order
+    """
+    try:
+        wb = openpyxl.load_workbook(file_path)
+        ws = wb.active
+
+        period_names = []
+
+        # Iterate through merged cells to find period names
+        for merge_range in ws.merged_cells.ranges:
+            min_col, min_row, max_col, max_row = merge_range.min_col, merge_range.min_row, merge_range.max_col, merge_range.max_row
+
+            # Only process merged cells in row 1 (index 1 in openpyxl, which is row 1 in Excel)
+            if min_row == 1 and max_row == 1 and min_col >= 6:  # Start from column 6 (after identity columns)
+                cell_value = ws.cell(row=min_row, column=min_col).value
+                if cell_value:
+                    period_names.append(str(cell_value).strip())
+
+        # Sort period names by column position
+        period_names_with_col = []
+        for merge_range in ws.merged_cells.ranges:
+            min_col, min_row, max_col, max_row = merge_range.min_col, merge_range.min_row, merge_range.max_col, merge_range.max_row
+            if min_row == 1 and max_row == 1 and min_col >= 6:
+                cell_value = ws.cell(row=min_row, column=min_col).value
+                if cell_value:
+                    period_names_with_col.append((min_col, str(cell_value).strip()))
+
+        period_names_with_col.sort(key=lambda x: x[0])
+        period_names = [name for col, name in period_names_with_col]
+
+        wb.close()
+        return period_names
+
+    except Exception as e:
+        print(f"Error extracting period names from merged cells: {str(e)}")
+        # Fallback to default period names
+        return []
 
 def load_who_table():
     """
@@ -17,7 +59,7 @@ def load_who_table():
     try:
         who_file_path = os.path.join(os.path.dirname(__file__), 'data master', 'Tabel_Pertumbuhan_Anak_0-2_Tahun.csv')
         if os.path.exists(who_file_path):
-            who_table = pd.read_csv(who_file_path)
+            who_table = pd.read_csv(who_file_path, sep=';')
             print(f"WHO table loaded successfully from {who_file_path}")
         else:
             print(f"Warning: WHO table not found at {who_file_path}")
@@ -277,57 +319,95 @@ def process_excel_to_json(file_path):
 
 def process_prd_format(file_path):
     """
-    Process PRD format Excel file
+    Process PRD format Excel file with merged cells for period names
+    Row 1: Merged cells for period names (JANUARI 2024, FEBRUARI 2024, etc.)
+    Row 2: Headers (NO, NIK, NAMA ANAK, TANGGAL LAHIR, JENIS KELAMIN, TGL UKUR, UMUR, etc.)
+    Row 3+: Data
     """
     try:
-        df = pd.read_excel(file_path)
+        # Extract period names from merged cells
+        period_names = extract_period_names_from_merged_cells(file_path)
 
-        # Get headers
-        main_header = df.iloc[0].fillna('')  # Baris 1
-        sub_header = df.iloc[1].fillna('')   # Baris 2
-        data_rows = df.iloc[2:].copy()
-        data_rows = data_rows.reset_index(drop=True)
+        # Read data with openpyxl to properly handle the structure
+        wb = openpyxl.load_workbook(file_path)
+        ws = wb.active
 
-        # Find period columns
+        # Determine the data structure
+        max_row = ws.max_row
+        max_col = ws.max_column
+
+        # Get headers from row 2 (index 2 in openpyxl)
+        headers = {}
+        for col_idx in range(1, max_col + 1):
+            cell_value = ws.cell(row=2, column=col_idx).value
+            if cell_value:
+                headers[col_idx - 1] = str(cell_value).strip()  # Convert to 0-based index
+
+        # Find period columns based on headers (start after 6 identity columns)
         period_columns = []
-        i = 5  # Mulai setelah 5 kolom identitas
+        period_index = 0
+        sub_columns = []
 
-        while i < len(main_header):
-            period_name = str(main_header.iloc[i]).strip()
-            if period_name:
-                sub_headers = []
-                j = i
-                while j < len(main_header) and j < i + 5:
-                    sub_col_name = str(sub_header.iloc[j]).strip()
-                    if sub_col_name in ['TGL UKUR', 'UMUR', 'BERAT', 'TINGGI', 'CARA UKUR']:
-                        sub_headers.append((j, sub_col_name))
-                    j += 1
+        for col_idx in range(7, max_col + 1):  # 1-based for openpyxl, start from column 7 (after 6 identity columns)
+            header_str = headers.get(col_idx - 1, '')
 
-                if sub_headers:
+            if header_str.upper() in ['TGL UKUR', 'UMUR', 'BERAT', 'TINGGI', 'CARA UKUR']:
+                sub_columns.append((col_idx - 1, header_str))  # Convert to 0-based index
+
+                # If we have all 5 sub-columns, create a period
+                if len(sub_columns) == 5:
+                    if period_index < len(period_names):
+                        period_name = period_names[period_index]
+                    else:
+                        period_name = f'Periode {period_index + 1}'
+
                     period_columns.append({
                         'period_name': period_name,
-                        'sub_columns': sub_headers
+                        'sub_columns': sub_columns.copy()
                     })
-                    i = j
-                else:
-                    i += 1
-            else:
-                i += 1
+                    period_index += 1
+                    sub_columns = []
 
+        # Handle any remaining sub-columns
+        if sub_columns:
+            if period_index < len(period_names):
+                period_name = period_names[period_index]
+            else:
+                period_name = f'Periode {period_index + 1}'
+
+            period_columns.append({
+                'period_name': period_name,
+                'sub_columns': sub_columns
+            })
+
+        # Process data from row 3 onwards (index 3 in openpyxl)
         children = []
-        for idx, row in data_rows.iterrows():
-            if row.isna().all():
+        for row_idx in range(3, max_row + 1):  # 1-based for openpyxl
+            # Read the entire row
+            row_data = []
+            for col_idx in range(1, max_col + 1):
+                cell_value = ws.cell(row=row_idx, column=col_idx).value
+                row_data.append(cell_value)
+
+            # Convert to pandas Series for compatibility with extract_child_data
+            import pandas as pd
+            row_series = pd.Series(row_data)
+
+            # Skip empty rows
+            if row_series.isna().all():
                 continue
 
-            child_data = extract_child_data(row, period_columns, start_col=0)
+            child_data = extract_child_data(row_series, period_columns, start_col=0)
             if child_data['nama_anak'] or child_data['nik']:
                 # Apply WHO assessment and height validation
                 apply_assessment_rules(child_data)
                 children.append(child_data)
 
+        wb.close()
+
         return {
             'file_name': os.path.basename(file_path),
-            'format_type': 'PRD Format',
+            'format_type': 'PRD Format with Merged Cells',
             'total_children': len(children),
             'total_periods': len(period_columns),
             'periods': [p['period_name'] for p in period_columns],
@@ -451,6 +531,7 @@ def extract_child_data(row, period_columns, start_col=0):
     """
     child_data = {
         'no': None,
+        'tempat': None,
         'nik': None,
         'nama_anak': None,
         'tanggal_lahir': None,
@@ -459,25 +540,27 @@ def extract_child_data(row, period_columns, start_col=0):
     }
 
     try:
-        # Extract identity information (first 5 columns)
+        # Extract identity information (first 6 columns: NO, TEMPAT, NIK, NAMA ANAK, TANGGAL LAHIR, JENIS KELAMIN)
         if len(row) > start_col:
             child_data['no'] = int(row.iloc[start_col]) if not pd.isna(row.iloc[start_col]) else None
         if len(row) > start_col + 1:
-            child_data['nik'] = str(row.iloc[start_col + 1]).strip() if not pd.isna(row.iloc[start_col + 1]) else None
+            child_data['tempat'] = str(row.iloc[start_col + 1]).strip() if not pd.isna(row.iloc[start_col + 1]) else None
         if len(row) > start_col + 2:
-            child_data['nama_anak'] = str(row.iloc[start_col + 2]).strip() if not pd.isna(row.iloc[start_col + 2]) else None
+            child_data['nik'] = str(row.iloc[start_col + 2]).strip() if not pd.isna(row.iloc[start_col + 2]) else None
         if len(row) > start_col + 3:
-            if not pd.isna(row.iloc[start_col + 3]):
-                if isinstance(row.iloc[start_col + 3], datetime):
-                    child_data['tanggal_lahir'] = row.iloc[start_col + 3].strftime('%Y-%m-%d')
+            child_data['nama_anak'] = str(row.iloc[start_col + 3]).strip() if not pd.isna(row.iloc[start_col + 3]) else None
+        if len(row) > start_col + 4:
+            if not pd.isna(row.iloc[start_col + 4]):
+                if isinstance(row.iloc[start_col + 4], datetime):
+                    child_data['tanggal_lahir'] = row.iloc[start_col + 4].strftime('%Y-%m-%d')
                 else:
                     try:
-                        date_obj = pd.to_datetime(row.iloc[start_col + 3])
+                        date_obj = pd.to_datetime(row.iloc[start_col + 4])
                         child_data['tanggal_lahir'] = date_obj.strftime('%Y-%m-%d')
                     except:
-                        child_data['tanggal_lahir'] = str(row.iloc[start_col + 3])
-        if len(row) > start_col + 4:
-            child_data['jenis_kelamin'] = str(row.iloc[start_col + 4]).strip().upper() if not pd.isna(row.iloc[start_col + 4]) else None
+                        child_data['tanggal_lahir'] = str(row.iloc[start_col + 4])
+        if len(row) > start_col + 5:
+            child_data['jenis_kelamin'] = str(row.iloc[start_col + 5]).strip().upper() if not pd.isna(row.iloc[start_col + 5]) else None
 
         # Process measurements
         for period in period_columns:
@@ -665,6 +748,32 @@ def detect_excel_format(file_path):
     Returns: format_type, description
     """
     try:
+        # First check for merged cells PRD format
+        try:
+            period_names = extract_period_names_from_merged_cells(file_path)
+            if period_names and len(period_names) > 0:
+                # Use openpyxl to check the actual structure
+                wb = openpyxl.load_workbook(file_path)
+                ws = wb.active
+
+                # Check row 2 (index 2 in openpyxl) for identity headers
+                identity_headers = []
+                for col_idx in range(1, 7):  # Check first 6 columns (including TEMPAT)
+                    cell_value = ws.cell(row=2, column=col_idx).value  # Row 2 = index 2
+                    if cell_value:
+                        identity_headers.append(str(cell_value).strip().upper())
+
+                wb.close()
+
+                required_identity = ['NO', 'NIK', 'NAMA ANAK', 'TANGGAL LAHIR', 'JENIS KELAMIN', 'TEMPAT']
+                identity_count = sum(1 for col in required_identity if col in identity_headers)
+
+                if identity_count >= 3:
+                    return 'prd_format', f'Format PRD dengan merged cells ({len(period_names)} periode terdeteksi)'
+        except Exception as e:
+            print(f"Debug: Error checking merged cells: {e}")
+            pass  # Continue with other detection methods
+
         df = pd.read_excel(file_path)
 
         # Check if first row looks like headers (contains strings like 'TGL UKUR', 'UMUR', etc.)
@@ -691,7 +800,7 @@ def detect_excel_format(file_path):
         if has_data:
             return 'direct_data', 'Format data langsung tanpa header'
 
-        # Check PRD format (headers in first row, sub-headers in second row)
+        # Check traditional PRD format (headers in first row, sub-headers in second row)
         if len(df) >= 2:
             main_header = df.iloc[0].fillna('').astype(str)
             required_identity = ['NO', 'NIK', 'NAMA ANAK', 'TANGGAL LAHIR', 'JENIS KELAMIN']
@@ -815,8 +924,8 @@ def validate_template_compliance(file_path):
 if __name__ == '__main__':
     # Example usage
     test_files = [
-        'data test/Data Test.xlsx',
-        'data test/Data Test Header.xlsx'
+        'data_template/Data Test.xlsx',
+        'data_template/Data Test Header.xlsx'
     ]
 
     for test_file in test_files:
