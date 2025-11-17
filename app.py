@@ -205,6 +205,119 @@ def check_export_data():
     except Exception as e:
         return jsonify({'error': f'Error checking export data: {str(e)}'}), 500
 
+@app.route('/debug-session')
+def debug_session():
+    """
+    Debug endpoint to check session data
+    """
+    try:
+        session_info = {
+            'session_keys': list(session.keys()),
+            'has_processed_data': 'processed_data' in session,
+            'session_id': getattr(session, '_sid', 'unknown'),
+            'session_type': str(type(session)),
+            'debug_info': {}
+        }
+
+        if 'processed_data' in session:
+            data = session['processed_data']
+            session_info['debug_info'] = {
+                'data_type': str(type(data)),
+                'is_dict': isinstance(data, dict),
+                'data_keys': list(data.keys()) if isinstance(data, dict) else 'not_dict',
+                'has_children': isinstance(data, dict) and 'children' in data,
+                'children_count': len(data.get('children', [])) if isinstance(data, dict) and 'children' in data else 0,
+                'total_children_field': data.get('total_children', 'missing') if isinstance(data, dict) else 'missing'
+            }
+
+        return jsonify(session_info)
+    except Exception as e:
+        return jsonify({'error': f'Debug session error: {str(e)}'}), 500
+
+@app.route('/debug-export-section')
+def debug_export_section():
+    """
+    Debug endpoint to test export section visibility logic
+    """
+    try:
+        # Simulate what happens after upload
+        debug_info = {
+            'step_1_upload_response': {
+                'description': 'What /upload returns after successful file upload',
+                'has_export_data_field': True,
+                'data_structure_check': 'Success -> should trigger showExportSection()'
+            },
+            'step_2_frontend_logic': {
+                'description': 'Frontend JavaScript logic from index.html',
+                'displayBalitaGrowthResult_calls': 'showExportSection(data) if data.has_export_data',
+                'line_in_template': 'Line 948-950 in displayBalitaGrowthResult()'
+            },
+            'step_3_showExportSection': {
+                'description': 'showExportSection() function makes export section visible',
+                'export_section_id': 'document.getElementById("exportSection")',
+                'display_style': 'Should change from "none" to "block"'
+            },
+            'step_4_alternative_logic': {
+                'description': 'Alternative check via /check-export-data on page load',
+                'calls_checkExportData': 'window.addEventListener("load", () => { loadFiles(); checkExportData(); })',
+                'page_load_logic': 'Line 683-686 in index.html'
+            }
+        }
+
+        return jsonify(debug_info)
+    except Exception as e:
+        return jsonify({'error': f'Debug export section error: {str(e)}'}), 500
+
+@app.route('/debug-create-test-data')
+def debug_create_test_data():
+    """
+    Create test data in session for debugging
+    """
+    try:
+        # Create minimal test data
+        test_data = {
+            'file_name': 'Test_File_Debug.xlsx',
+            'format_type': 'Debug Format',
+            'total_children': 2,
+            'total_periods': 3,
+            'validation': {'valid': True, 'errors': [], 'warnings': []},
+            'children': [
+                {
+                    'nama_anak': 'Test Child 1',
+                    'nik': '1234567890123456',
+                    'measurements': [
+                        {'periode': 'JAN 2024', 'berat_kg': 5.5, 'tinggi_cm': 65.0},
+                        {'periode': 'FEB 2024', 'berat_kg': 5.8, 'tinggi_cm': 66.5}
+                    ]
+                },
+                {
+                    'nama_anak': 'Test Child 2',
+                    'nik': '2345678901234567',
+                    'measurements': [
+                        {'periode': 'JAN 2024', 'berat_kg': 6.2, 'tinggi_cm': 68.0}
+                    ]
+                }
+            ]
+        }
+
+        # Store in session
+        session['processed_data'] = test_data
+        session['upload_timestamp'] = datetime.now().isoformat()
+
+        return jsonify({
+            'success': True,
+            'message': 'Test data created successfully',
+            'test_data_created': test_data,
+            'session_keys': list(session.keys()),
+            'debug_info': {
+                'processed_data_stored': True,
+                'children_count': len(test_data['children']),
+                'total_measurements': sum(len(child['measurements']) for child in test_data['children'])
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': f'Debug create test data error: {str(e)}'}), 500
+
 if __name__ == '__main__':
     # Debug logging for startup
     print("=== SiTrack Stunting Startup Debug ===")

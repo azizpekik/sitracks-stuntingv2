@@ -651,6 +651,15 @@
                     </button>
                 </div>
                 <div class="export-stats" id="exportStats"></div>
+
+                <!-- Debug Buttons -->
+                <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; font-size: 0.8em;">
+                    <strong>🔍 Debug Controls:</strong>
+                    <button onclick="debugSession()" style="margin: 5px; padding: 5px 10px; font-size: 0.8em; background: #007bff; color: white; border: none; border-radius: 3px;">Debug Session</button>
+                    <button onclick="debugCreateTestData()" style="margin: 5px; padding: 5px 10px; font-size: 0.8em; background: #28a745; color: white; border: none; border-radius: 3px;">Create Test Data</button>
+                    <button onclick="debugExportLogic()" style="margin: 5px; padding: 5px 10px; font-size: 0.8em; background: #ffc107; color: #212529; border: none; border-radius: 3px;">Debug Export Logic</button>
+                    <div id="debugOutput" style="margin-top: 10px; padding: 5px; background: white; border-radius: 3px; max-height: 100px; overflow-y: auto; font-family: monospace; font-size: 0.7em; display: none;"></div>
+                </div>
             </div>
 
             <div style="margin-top: 20px;">
@@ -1277,6 +1286,104 @@
                 exportBtnText.textContent = 'Export ke Excel';
             }
         }
+
+        // Debug Functions
+        function showDebugOutput(message) {
+            const debugOutput = document.getElementById('debugOutput');
+            debugOutput.style.display = 'block';
+            debugOutput.innerHTML += message + '<br>';
+            debugOutput.scrollTop = debugOutput.scrollHeight;
+        }
+
+        function clearDebugOutput() {
+            const debugOutput = document.getElementById('debugOutput');
+            debugOutput.style.display = 'none';
+            debugOutput.innerHTML = '';
+        }
+
+        async function debugSession() {
+            clearDebugOutput();
+            showDebugOutput('🔍 Debugging Session Data...');
+
+            try {
+                const response = await fetch('/debug-session');
+                const result = await response.json();
+
+                showDebugOutput('✅ Session Debug Result:');
+                showDebugOutput(JSON.stringify(result, null, 2));
+            } catch (error) {
+                showDebugOutput('❌ Session Debug Error: ' + error.message);
+            }
+        }
+
+        async function debugCreateTestData() {
+            clearDebugOutput();
+            showDebugOutput('🔧 Creating Test Data...');
+
+            try {
+                const response = await fetch('/debug-create-test-data');
+                const result = await response.json();
+
+                if (result.success) {
+                    showDebugOutput('✅ Test Data Created Successfully');
+                    showDebugOutput(JSON.stringify(result, null, 2));
+
+                    // Try to trigger export section display
+                    showDebugOutput('🔄 Triggering export section check...');
+                    await checkExportData();
+
+                    // Force show export section for testing
+                    showDebugOutput('🎯 Force showing export section...');
+                    const exportSection = document.getElementById('exportSection');
+                    exportSection.style.display = 'block';
+                    showDebugOutput('✅ Export section forced to display');
+                } else {
+                    showDebugOutput('❌ Test Data Creation Failed: ' + result.error);
+                }
+            } catch (error) {
+                showDebugOutput('❌ Test Data Error: ' + error.message);
+            }
+        }
+
+        async function debugExportLogic() {
+            clearDebugOutput();
+            showDebugOutput('🔍 Debugging Export Logic...');
+
+            try {
+                const response = await fetch('/debug-export-section');
+                const result = await response.json();
+
+                showDebugOutput('✅ Export Logic Debug:');
+                showDebugOutput(JSON.stringify(result, null, 2));
+
+                // Check current export section state
+                const exportSection = document.getElementById('exportSection');
+                showDebugOutput('🎯 Current Export Section Display: ' + exportSection.style.display);
+                showDebugOutput('🎯 Export Section Exists: ' + (exportSection !== null));
+                showDebugOutput('🎯 Export Button Exists: ' + (document.getElementById('exportBtn') !== null));
+
+            } catch (error) {
+                showDebugOutput('❌ Export Logic Debug Error: ' + error.message);
+            }
+        }
+
+        // Force export section to show on load for debugging
+        window.addEventListener('load', () => {
+            loadFiles();
+            checkExportData();
+
+            // Debug info on page load
+            setTimeout(() => {
+                const exportSection = document.getElementById('exportSection');
+                const exportBtn = document.getElementById('exportBtn');
+
+                if (exportSection && exportBtn) {
+                    showDebugOutput('🔍 Page Load Debug:');
+                    showDebugOutput('Export Section Display: ' + exportSection.style.display);
+                    showDebugOutput('Export Button Disabled: ' + exportBtn.disabled);
+                }
+            }, 1000);
+        });
     </script>
 </body>
 </html>
