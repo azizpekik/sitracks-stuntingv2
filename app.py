@@ -154,26 +154,25 @@ def export_analisis():
     Export analisis data pertumbuhan anak ke Excel dengan format analisis
     """
     try:
-        # Try to get export_id from session first
+        # Try to get export_id from session first (priority)
         export_id = session.get('export_id')
 
-        # If no export_id in session, check server-side storage
-        if not export_id:
-            # Find the most recent export data
-            if export_data_store:
-                export_id = max(export_data_store.keys(),
-                           key=lambda k: export_data_store[k].get('created_at', ''))
-            else:
-                return jsonify({'error': 'Tidak ada data untuk di-export. Silakan upload file terlebih dahulu.'}), 400
+        # Get processed data with proper priority
+        processed_data = None
 
-        # Get processed data from server storage
+        # Priority 1: Use session export_id to get server storage data
         if export_id and export_id in export_data_store:
             processed_data = export_data_store[export_id]['data']
-        else:
-            # Fallback to session (for compatibility)
-            if 'processed_data' not in session:
-                return jsonify({'error': 'Tidak ada data untuk di-export. Silakan upload file terlebih dahulu.'}), 400
+        # Priority 2: Use session data directly (compatibility)
+        elif 'processed_data' in session:
             processed_data = session['processed_data']
+        # Priority 3: Only use most recent server data as last resort
+        elif export_data_store:
+            export_id = max(export_data_store.keys(),
+                       key=lambda k: export_data_store[k].get('created_at', ''))
+            processed_data = export_data_store[export_id]['data']
+        else:
+            return jsonify({'error': 'Tidak ada data untuk di-export. Silakan upload file terlebih dahulu.'}), 400
 
         # Double-check that we have valid data structure
         if not processed_data or not isinstance(processed_data, dict):
@@ -208,45 +207,38 @@ def check_export_data():
     Check if there's data available for export
     """
     try:
-        # Check server-side storage first
-        has_server_data = len(export_data_store) > 0
-        has_session_data = 'processed_data' in session
         export_id = session.get('export_id')
-
         stats = {}
         upload_time = None
+        data = None
 
-        # Prioritize server-side storage
-        if has_server_data:
-            # Get the most recent data
+        # Priority 1: Use session export_id to get server storage data
+        if export_id and export_id in export_data_store:
+            data = export_data_store[export_id]['data']
+            upload_time = export_data_store[export_id]['upload_timestamp']
+        # Priority 2: Use session data directly
+        elif 'processed_data' in session:
+            data = session['processed_data']
+            upload_time = session.get('upload_timestamp')
+        # Priority 3: Use most recent server data as last resort
+        elif export_data_store:
             latest_export_id = max(export_data_store.keys(),
                                  key=lambda k: export_data_store[k].get('created_at', ''))
             if latest_export_id in export_data_store:
                 data = export_data_store[latest_export_id]['data']
                 upload_time = export_data_store[latest_export_id]['upload_timestamp']
 
-                if isinstance(data, dict) and 'children' in data and data['children']:
-                    stats = {
-                        'total_children': data.get('total_children', len(data['children'])),
-                        'total_periods': data.get('total_periods', 0),
-                        'file_name': data.get('file_name', 'Unknown'),
-                        'format_type': data.get('format_type', 'Unknown')
-                    }
-        elif has_session_data and export_id and export_id in export_data_store:
-            # Fallback to session data
-            data = export_data_store[export_id]['data']
-            upload_time = export_data_store[export_id]['upload_timestamp']
-
-            if isinstance(data, dict) and 'children' in data and data['children']:
-                stats = {
-                    'total_children': data.get('total_children', len(data['children'])),
-                    'total_periods': data.get('total_periods', 0),
-                    'file_name': data.get('file_name', 'Unknown'),
-                    'format_type': data.get('format_type', 'Unknown')
-                }
+        # Extract stats if we have data
+        if data and isinstance(data, dict) and 'children' in data and data['children']:
+            stats = {
+                'total_children': data.get('total_children', len(data['children'])),
+                'total_periods': data.get('total_periods', 0),
+                'file_name': data.get('file_name', 'Unknown'),
+                'format_type': data.get('format_type', 'Unknown')
+            }
 
         return jsonify({
-            'has_export_data': has_server_data or has_session_data,
+            'has_export_data': data is not None,
             'upload_timestamp': upload_time,
             'stats': stats,
             'server_storage_count': len(export_data_store),
