@@ -192,10 +192,11 @@ def check_export_data():
         return jsonify({'error': f'Error checking export data: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5001))
+    port = int(os.environ.get('PORT', 5000))
     host = os.environ.get('HOST', '0.0.0.0')
-    debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
+    debug_mode = os.environ.get('FLASK_ENV', 'production') == 'development'
 
     print(f"Starting SiTrack Stunting on {host}:{port}")
     print(f"Debug mode: {debug_mode}")
+    print(f"Environment: {os.environ.get('RAILWAY_ENVIRONMENT', 'development')}")
     app.run(debug=debug_mode, host=host, port=port)
