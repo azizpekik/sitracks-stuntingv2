@@ -64,10 +64,8 @@ def upload_file():
             result['validation'] = validation_result
 
             # Store processed data in session for export functionality
-            print(f"DEBUG: Storing data in session - result keys: {list(result.keys())}")
             session['processed_data'] = result
             session['upload_timestamp'] = datetime.now().isoformat()
-            print(f"DEBUG: Session data stored. Session ID: {session.sid}")
 
             # Build appropriate message based on validation results
             message = 'File uploaded and processed successfully'
@@ -164,10 +162,8 @@ def check_export_data():
     Check if there's data available for export
     """
     try:
-        print(f"DEBUG: Checking export data. Session keys: {list(session.keys())}")
         has_data = 'processed_data' in session
         upload_time = session.get('upload_timestamp', None)
-        print(f"DEBUG: has_data={has_data}, upload_time={upload_time}")
 
         # Get some statistics about the data if available
         stats = {}
@@ -179,7 +175,6 @@ def check_export_data():
                 'file_name': data.get('file_name', 'Unknown'),
                 'format_type': data.get('format_type', 'Unknown')
             }
-            print(f"DEBUG: Stats extracted: {stats}")
 
         return jsonify({
             'has_export_data': has_data,
@@ -188,7 +183,6 @@ def check_export_data():
         })
 
     except Exception as e:
-        print(f"DEBUG: Error in check-export-data: {str(e)}")
         return jsonify({'error': f'Error checking export data: {str(e)}'}), 500
 
 if __name__ == '__main__':
