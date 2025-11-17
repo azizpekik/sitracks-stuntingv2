@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, jsonify, send_file
+from flask import Flask, request, render_template, jsonify, send_file, session
 from flask_session import Session
 import os
 from datetime import datetime
@@ -292,7 +292,7 @@ def debug_session():
 
         if export_data_store:
             for export_id, storage_data in export_data_store.items():
-                session_info['debug_info']['storage_details'][export_id] = {
+                session_info['debug_info']['server_storage']['storage_details'][export_id] = {
                     'created_at': storage_data.get('created_at'),
                     'has_children': isinstance(storage_data.get('data', {}), dict) and 'children' in storage_data.get('data', {}),
                     'children_count': len(storage_data.get('data', {}).get('children', [])),
@@ -373,13 +373,24 @@ def debug_create_test_data():
         session['processed_data'] = test_data
         session['upload_timestamp'] = datetime.now().isoformat()
 
+        # Also store in server-side storage for testing
+        export_id = str(uuid.uuid4())
+        export_data_store[export_id] = {
+            'data': test_data,
+            'upload_timestamp': datetime.now().isoformat(),
+            'created_at': datetime.now().isoformat()
+        }
+        session['export_id'] = export_id
+
         return jsonify({
             'success': True,
             'message': 'Test data created successfully',
             'test_data_created': test_data,
             'session_keys': list(session.keys()),
+            'export_id': export_id,
             'debug_info': {
                 'processed_data_stored': True,
+                'server_storage_stored': True,
                 'children_count': len(test_data['children']),
                 'total_measurements': sum(len(child['measurements']) for child in test_data['children'])
             }
