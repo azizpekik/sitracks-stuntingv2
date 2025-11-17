@@ -12,15 +12,21 @@ app.config['UPLOAD_FOLDER'] = os.environ.get('UPLOAD_FOLDER', 'uploads')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'sitrek_stunting_secret_key_2024')
 
+# Railway-specific configurations
+is_railway = os.environ.get('RAILWAY_ENVIRONMENT', '') != ''
+if is_railway:
+    app.config['SESSION_FILE_DIR'] = '/tmp/flask_sessions'
+else:
+    app.config['SESSION_FILE_DIR'] = 'flask_sessions'
+
 # Use file-based session to avoid cookie size limit
 app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SESSION_FILE_DIR'] = 'flask_sessions'
 app.config['SESSION_FILE_THRESHOLD'] = 500
 app.config['SESSION_PERMANENT'] = False
 
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs('flask_sessions', exist_ok=True)
+os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
 
 # Initialize session
 sess = Session(app)
@@ -190,4 +196,6 @@ if __name__ == '__main__':
     host = os.environ.get('HOST', '0.0.0.0')
     debug_mode = os.environ.get('FLASK_ENV', 'development') == 'development'
 
+    print(f"Starting SiTrack Stunting on {host}:{port}")
+    print(f"Debug mode: {debug_mode}")
     app.run(debug=debug_mode, host=host, port=port)
