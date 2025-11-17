@@ -82,7 +82,7 @@ def upload_file():
                 'success': True,
                 'message': message,
                 'data': result,
-                'has_export_data': True
+                'has_export_data': True  # Always allow export after successful upload
             })
         else:
             return jsonify({'error': 'Please upload an Excel file (.xlsx or .xls)'}), 400
@@ -143,6 +143,14 @@ def export_analisis():
 
         processed_data = session['processed_data']
 
+        # Double-check that we have valid data structure
+        if not processed_data or not isinstance(processed_data, dict):
+            return jsonify({'error': 'Data tidak valid. Silakan upload file kembali.'}), 400
+
+        # Check for essential data
+        if 'children' not in processed_data or not processed_data['children']:
+            return jsonify({'error': 'Tidak ada data anak untuk di-export.'}), 400
+
         # Generate filename with timestamp
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"Analisis_Pertumbuhan_Anak_{timestamp}.xlsx"
@@ -175,12 +183,18 @@ def check_export_data():
         stats = {}
         if has_data:
             data = session.get('processed_data', {})
-            stats = {
-                'total_children': data.get('total_children', 0),
-                'total_periods': data.get('total_periods', 0),
-                'file_name': data.get('file_name', 'Unknown'),
-                'format_type': data.get('format_type', 'Unknown')
-            }
+
+            # Validate that the data structure is valid
+            if isinstance(data, dict) and 'children' in data and data['children']:
+                stats = {
+                    'total_children': data.get('total_children', len(data['children'])),
+                    'total_periods': data.get('total_periods', 0),
+                    'file_name': data.get('file_name', 'Unknown'),
+                    'format_type': data.get('format_type', 'Unknown')
+                }
+            else:
+                # Data structure is invalid, reset has_data
+                has_data = False
 
         return jsonify({
             'has_export_data': has_data,
