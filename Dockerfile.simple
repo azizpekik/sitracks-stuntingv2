@@ -1,0 +1,13 @@
+# Ultra-simple Dockerfile for Railway testing
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install only Flask for testing
+RUN pip install --no-cache-dir flask==2.3.3
+
+# Copy only the test app
+COPY test_app.py .
+
+# Use Railway's PORT
+CMD ["python", "test_app.py"]
