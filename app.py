@@ -192,6 +192,21 @@ def check_export_data():
         return jsonify({'error': f'Error checking export data: {str(e)}'}), 500
 
 if __name__ == '__main__':
+    # Debug logging for startup
+    print("=== SiTrack Stunting Startup Debug ===")
+    print(f"PORT environment variable: {os.environ.get('PORT', 'NOT_SET')}")
+    print(f"HOST environment variable: {os.environ.get('HOST', 'NOT_SET')}")
+    print(f"FLASK_ENV environment variable: {os.environ.get('FLASK_ENV', 'NOT_SET')}")
+    print(f"RAILWAY_ENVIRONMENT environment variable: {os.environ.get('RAILWAY_ENVIRONMENT', 'NOT_SET')}")
+
+    # Test directories
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Upload folder exists: {os.path.exists(app.config['UPLOAD_FOLDER'])}")
+    print(f"Session folder exists: {os.path.exists(app.config['SESSION_FILE_DIR'])}")
+    print(f"Data template exists: {os.path.exists('data_template')}")
+    if os.path.exists('data_template'):
+        print(f"Data template contents: {os.listdir('data_template')}")
+
     port = int(os.environ.get('PORT', 5000))
     host = os.environ.get('HOST', '0.0.0.0')
     debug_mode = os.environ.get('FLASK_ENV', 'production') == 'development'
@@ -199,4 +214,5 @@ if __name__ == '__main__':
     print(f"Starting SiTrack Stunting on {host}:{port}")
     print(f"Debug mode: {debug_mode}")
     print(f"Environment: {os.environ.get('RAILWAY_ENVIRONMENT', 'development')}")
+    print("=== Starting Flask App ===")
     app.run(debug=debug_mode, host=host, port=port)
